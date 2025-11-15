@@ -12,6 +12,8 @@ import {
   HttpStatus,
   Module,
 } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
 
 
 async function bootstrap() {

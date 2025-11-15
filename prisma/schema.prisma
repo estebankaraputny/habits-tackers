@@ -10,6 +10,172 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+// Enums
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ChallengeStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+// Models
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String
+  role      UserRole  @default(USER)
+  avatar    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  habits       Habit[]
+  challenges   Challenge[]
+  challengeMembership ChallengeParticipant[] //susb del user
+  completions  HabitCompletion[]
+  //Amigos
+  sentRequests FriendsShip[] @relation("Sender")
+  receiverRequests FriendsShip[] @relation("Receiver")
+  friends      Friend[]         @relation("userFriends")
+  friendOf     Friend[]         @relation("friendUser")
+
+  // Relaciones uno-a-uno
+  profile     UserProfile?
+  admin       Admin?
+
+  @@map("users")
+}
+
+model UserProfile {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  description String?
+  avatarUrl   String?
+  publicId    String?
+  phone       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id])
+  @@map("user_profile")
+}
+
+model Admin{
+  id      Int     @id @default(autoincrement())
+  name    String  @unique
+  userId  Int     @unique
+  user    User    @relation(fields: [userId], references: [id])
+  @@map("admin")
+}
+
+
+model Habit {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  title       String
+  description String?
+  frequency   HabitFrequency
+  color       String?   @default("#3B82F6")
+  icon        String?
+  start_Habit DateTime   @map("start_habit")
+  end_Habit    DateTime   @map("end_habit")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions HabitCompletion[]
+
+ 
+}
+
+model HabitCompletion {
+  id        Int       @id @default(autoincrement())
+  habitId   Int
+  userId    Int
+  date      DateTime
+  completed Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  habit     Habit     @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, userId, date])
+  @@index([userId])
+  @@index([habitId])
+}
+
+model Challenge {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  title       String
+  description String?
+  status      ChallengeStatus @default(ACTIVE)
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants ChallengeParticipant[] //participantes del reto
+  @@index([userId])
+}
+
+model Friend {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  friendId  Int
+  status    String    @default("pending") // pending, accepted, blocked
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation("userFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User      @relation("friendUser", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([friendId])
+}
+
+model ChallengeParticipant {
+  id      Int     @id  @default(autoincrement())
+  joinedAt DateTime @default(now())
+
+  //Datos extras
+  currentStreak Int @default(0)
+  bestStreak Int @default(0)
+
+  //FK
+  userId     Int
+  challengeId Int
+
+  user       User      @relation(fields: [userId], references: [id])
+  challenge  Challenge @relation(fields: [challengeId], references: [id])
+  @@index([userId])
+  @@index([challengeId])
+}
+
+model FriendsShip {
+  id String @id @default(uuid())
+  status String @default("Pending")
+  //Conexiones entre amigos
+  senderId   Int
+  sender     User   @relation("Sender", fields: [senderId], references: [id])
+
+  receiverId Int
+  receiver   User   @relation("Receiver", fields: [receiverId], references: [id])
+}
+
+
